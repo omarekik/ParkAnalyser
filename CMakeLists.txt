@@ -18,7 +18,8 @@ include_directories(include)
 
 add_executable(mytest testes/main.cpp 
                       testes/test.cpp
-                      source/Parser.cpp)
+                      source/Parser.cpp
+                      source/ParkLog.cpp)
 
 target_link_libraries(mytest gtest_main)
 
