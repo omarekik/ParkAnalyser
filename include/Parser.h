@@ -22,8 +22,6 @@ enum class Separators : char {
      POSITION = '/'
 };
 
-std::string const getSeparators();
-
 class Parser
 {
 private:
