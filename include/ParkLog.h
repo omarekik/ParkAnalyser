@@ -1,19 +1,16 @@
-#pragma once 
+#pragma once
 
+#include "CarLog.h"
+#include <set>
 #include <string>
-#include <vector>
+#include <filesystem>
 
-// data model struts for parse testing
-struct Position{
-    int m_Abscissa;
-    int m_Ordinanate;
-    int m_Time;
-};
-struct CarLog{
-    std::vector<Position> m_Positions;
-    std::string m_CarId;
-};
-struct ParkLog
-{
-    std::vector<CarLog> m_CarLogs;
+class ParkLog{
+public:
+    void emplace(CarLog car_log);
+    std::string getSpeedy(int const & minSpeed)const;
+    std::string getSpeedy(int const & minSpeed, int const & maxSpeed)const;
+    std::string const serialize() const;
+private:    
+    std::multiset<CarLog> m_CarLogs;
 };

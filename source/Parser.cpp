@@ -1,5 +1,6 @@
 #include "Parser.h"
 #include "ParkLog.h"
+#include "Position.h"
 #include <fstream>
 #include <sstream>
 #include <string_view>
@@ -21,7 +22,6 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
             log_loop = false;
             log_sep_end = m_Log.size();
         }
-        CarLog car_log;
         std::string_view car_log_sv(&m_Log[log_sep_begin], log_sep_end - log_sep_begin);
         //std::cout<<"car log: " << car_log_sv << "\n";
 
@@ -32,8 +32,8 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
         id_sep_end = car_log_sv.find(static_cast<char>(Separators::ID));
         if(id_sep_end != std::string_view::npos){
             std::string_view car_id(&m_Log[log_sep_begin], id_sep_end);
-            car_log.m_CarId = std::move(std::string(car_id));
-            //std::cout<<"car id: " << car_log.m_CarId << "\n";
+            CarLog car_log(std::move(std::string(car_id)));
+            //std::cout<<"car id: " << car_id << "\n";
 
             //
             // Parse the list of car positions
@@ -51,7 +51,6 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
                 // The case that the list of positions ended by Separators::POSITION
                 //
                 if(position_sep_end > car_log_sv.size() - 2) position_loop = false;
-                Position position;
                 std::string_view position_sv(&car_log_sv[position_sep_begin], position_sep_end - position_sep_begin);
                 //
                 // Parse abscissa
@@ -67,10 +66,6 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
                         std::cout << "Could not convert abscissa:" << std::string(abscissa_sv) << "\n";
                         parsed_position = false;
                     }
-                    else{
-                        position.m_Abscissa = std::move(abscissa);
-                        //std::cout<<"abscissa: " << position.m_Abscissa << "\n";
-                    }
                     //
                     // Parse ordinate of position.
                     //    
@@ -84,10 +79,6 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
                             std::cout << "Could not convert ordinate:" << std::string(ordinate_sv) << "\n";
                             parsed_position = false;
                         }
-                        else{
-                            position.m_Ordinanate = std::move(ordinate);
-                            //std::cout<<"ordinate: " << position.m_Ordinanate << "\n";
-                        }
                         //
                         // Parse time of position.
                         //    
@@ -98,21 +89,15 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
                             std::cout << "Could not convert time:" << std::string(time_sv) << "\n";
                             parsed_position = false;
                         }
-                        else{
-                            position.m_Time = std::move(time);
-                            //std::cout<<"time: " << position.m_Time << "\n";
-                        }
                         //
                         // move position to list of positions of car
                         //
                         if(parsed_position){
-                            car_log.m_Positions.emplace_back(std::move(position));
+                            car_log.insert(TimeSpacePosition(abscissa, ordinate, time));
+                            //std::cout<<"Parsed position   abscissa: "<< abscissa << ", ordinate: "<< ordinate << ", time: " << time;
                         }
                         else{
-                            //
-                            //Position is rejected and will not be in car positions
-                            //
-                            std::cout<<"Can not convert one of position elements to integer: " << position_sv << "\n";
+                            std::cout<<"Position is rejected because one of its elements can not be converted to integer: " << position_sv << "\n";
                         }
                     }
                     else {
@@ -129,7 +114,8 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
             //
             // move car log to park log
             //
-            park_log.m_CarLogs.emplace_back(std::move(car_log));
+            car_log.updateAvgSpeed();
+            park_log.emplace(std::move(car_log));
         }
         else{
             //
@@ -139,26 +125,4 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
         }
         log_sep_begin = log_sep_end + 1;
     }
-}
-
-std::string Parser::serializePark(ParkLog & park_log){
-    std::string res = "";
-    for(auto & car_log : park_log.m_CarLogs){
-        res += car_log.m_CarId;
-        res += static_cast<char>(Separators::ID);
-        for(auto & position : car_log.m_Positions){
-            res += std::to_string(position.m_Abscissa);
-            res += static_cast<char>(Separators::SPACE_TIME);
-            res += std::to_string(position.m_Ordinanate);
-            res += static_cast<char>(Separators::SPACE_TIME);
-            res += std::to_string(position.m_Time);
-            res += static_cast<char>(Separators::POSITION);
-        }
-        //
-        // In serialization, last position is not ended by Separators::POSITION
-        //
-        res.pop_back();
-        res += static_cast<char>(Separators::LOG);
-    }
-    return res;
 }

@@ -16,10 +16,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(include)
 
-add_executable(mytest testes/main.cpp 
-                      testes/test.cpp
+add_executable(mytest source/Position.cpp
+                      source/CarLog.cpp
+                      source/ParkLog.cpp
                       source/Parser.cpp
-                      source/ParkLog.cpp)
+                      testes/ParkLogTest.cpp
+                      testes/ParserTest.cpp
+                      testes/main.cpp )
 
 target_link_libraries(mytest gtest_main)
 

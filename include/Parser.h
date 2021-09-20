@@ -1,4 +1,5 @@
 #pragma once
+
 #include <string>
 #include <filesystem>
 #include "ParkLog.h"
@@ -24,11 +25,12 @@ enum class Separators : char {
 
 class Parser
 {
-private:
-    std::string m_Log;
 public:
     Parser(std::filesystem::path const & filename, ParkLog & park_log);
+    //
+    // Used only for test
+    //
     std::string serializePark(ParkLog & park_log);
+private:
+    std::string m_Log;
 };
-
-
