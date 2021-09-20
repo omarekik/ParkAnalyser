@@ -23,75 +23,120 @@ Parser::Parser(std::filesystem::path const & filename, ParkLog & park_log){
         }
         CarLog car_log;
         std::string_view car_log_sv(&m_Log[log_sep_begin], log_sep_end - log_sep_begin);
+        //std::cout<<"car log: " << car_log_sv << "\n";
+
         //
         // Parse car id
         //
         std::string::size_type id_sep_end = 0;
         id_sep_end = car_log_sv.find(static_cast<char>(Separators::ID));
-        std::string_view car_id(&m_Log[log_sep_begin], id_sep_end);
-        car_log.m_CarId = std::move(std::string(car_id));
-        //
-        // Parse the list of car positions
-        //
-        std::string::size_type position_sep_begin = id_sep_end + 1, position_sep_end = id_sep_end;
-        for(bool position_loop = true; position_loop;){
+        if(id_sep_end != std::string_view::npos){
+            std::string_view car_id(&m_Log[log_sep_begin], id_sep_end);
+            car_log.m_CarId = std::move(std::string(car_id));
+            //std::cout<<"car id: " << car_log.m_CarId << "\n";
+
             //
-            // The case that the list of positions ended by a position (Separators::LOG) and not Separators::POSITION
+            // Parse the list of car positions
             //
-            if((position_sep_end = car_log_sv.find(static_cast<char>(Separators::POSITION), position_sep_begin)) == std::string_view::npos){
-                position_loop = false;
-                position_sep_end = car_log_sv.size() ;
+            std::string::size_type position_sep_begin = id_sep_end + 1, position_sep_end = id_sep_end;
+            for(bool position_loop = true; position_loop;){
+                //
+                // The case that the list of positions ended by a position (Separators::LOG) and not Separators::POSITION
+                //
+                if((position_sep_end = car_log_sv.find(static_cast<char>(Separators::POSITION), position_sep_begin)) == std::string_view::npos){
+                    position_loop = false;
+                    position_sep_end = car_log_sv.size() ;
+                }
+                //
+                // The case that the list of positions ended by Separators::POSITION
+                //
+                if(position_sep_end > car_log_sv.size() - 2) position_loop = false;
+                Position position;
+                std::string_view position_sv(&car_log_sv[position_sep_begin], position_sep_end - position_sep_begin);
+                //
+                // Parse abscissa
+                //    
+                std::string::size_type abscissa_sep_end = 0;
+                abscissa_sep_end = position_sv.find(static_cast<char>(Separators::SPACE_TIME));
+                if(abscissa_sep_end != std::string_view::npos){
+                    int abscissa = 0;
+                    std::string_view abscissa_sv(&position_sv[0], abscissa_sep_end);
+                    auto result = std::from_chars(abscissa_sv.data(), abscissa_sv.data() + abscissa_sv.size(), abscissa);
+                    bool parsed_position = true;
+                    if (result.ec == std::errc::invalid_argument) {
+                        std::cout << "Could not convert abscissa:" << std::string(abscissa_sv) << "\n";
+                        parsed_position = false;
+                    }
+                    else{
+                        position.m_Abscissa = std::move(abscissa);
+                        //std::cout<<"abscissa: " << position.m_Abscissa << "\n";
+                    }
+                    //
+                    // Parse ordinate of position.
+                    //    
+                    std::string::size_type ordinate_sep_begin = abscissa_sep_end + 1, ordinate_sep_end = abscissa_sep_end + 1;
+                    ordinate_sep_end = position_sv.find(static_cast<char>(Separators::SPACE_TIME), ordinate_sep_begin);
+                    if(ordinate_sep_end != std::string_view::npos){
+                        int ordinate = 0;
+                        std::string_view ordinate_sv(&position_sv[ordinate_sep_begin], ordinate_sep_end - ordinate_sep_begin);
+                        result = std::from_chars(ordinate_sv.data(), ordinate_sv.data() + ordinate_sv.size(), ordinate);
+                        if (result.ec == std::errc::invalid_argument) {
+                            std::cout << "Could not convert ordinate:" << std::string(ordinate_sv) << "\n";
+                            parsed_position = false;
+                        }
+                        else{
+                            position.m_Ordinanate = std::move(ordinate);
+                            //std::cout<<"ordinate: " << position.m_Ordinanate << "\n";
+                        }
+                        //
+                        // Parse time of position.
+                        //    
+                        int time = 0;
+                        std::string_view time_sv(&position_sv[ordinate_sep_end + 1], position_sv.size() - (ordinate_sep_end + 1));
+                        result = std::from_chars(time_sv.data(), time_sv.data() + time_sv.size(), time);
+                        if (result.ec == std::errc::invalid_argument) {
+                            std::cout << "Could not convert time:" << std::string(time_sv) << "\n";
+                            parsed_position = false;
+                        }
+                        else{
+                            position.m_Time = std::move(time);
+                            //std::cout<<"time: " << position.m_Time << "\n";
+                        }
+                        //
+                        // move position to list of positions of car
+                        //
+                        if(parsed_position){
+                            car_log.m_Positions.emplace_back(std::move(position));
+                        }
+                        else{
+                            //
+                            //Position is rejected and will not be in car positions
+                            //
+                            std::cout<<"Can not convert one of position elements to integer: " << position_sv << "\n";
+                        }
+                    }
+                    else {
+                        std::cout<<"Position is rejected because no space time separator between ordinate and time: "
+                                << position_sv << "\n";
+                    }
+                }
+                else {
+                    std::cout<<"Position is rejected because no space time separator between abscissa and ordinate: "
+                             << position_sv << "\n";
+                }
+                position_sep_begin = position_sep_end + 1;
             }
             //
-            // The case that the list of positions ended by Separators::POSITION
+            // move car log to park log
             //
-            if(position_sep_end > car_log_sv.size() - 2) position_loop = false;
-            Position position;
-            std::string_view position_sv(&car_log_sv[position_sep_begin], position_sep_end - position_sep_begin);
-            //
-            // Parse abscissa
-            //    
-            std::string::size_type abscissa_sep_end = 0;
-            abscissa_sep_end = position_sv.find(static_cast<char>(Separators::SPACE_TIME));
-            int abscissa = 0;
-            std::string_view abscissa_sv(&position_sv[0], abscissa_sep_end);
-            auto result = std::from_chars(abscissa_sv.data(), abscissa_sv.data() + abscissa_sv.size(), abscissa);
-            if (result.ec == std::errc::invalid_argument) {
-                std::cout << "Could not convert abscissa:" << std::string(abscissa_sv) << "\n";
-            }
-            position.m_Abscissa = std::move(abscissa);
-            //
-            // Parse ordinate of position.
-            //    
-            std::string::size_type ordinate_sep_begin = abscissa_sep_end + 1, ordinate_sep_end = abscissa_sep_end + 1;
-            ordinate_sep_end = position_sv.find(static_cast<char>(Separators::SPACE_TIME), ordinate_sep_begin);
-            int ordinate = 0;
-            std::string_view ordinate_sv(&position_sv[ordinate_sep_begin], ordinate_sep_end - ordinate_sep_begin);
-            result = std::from_chars(ordinate_sv.data(), ordinate_sv.data() + ordinate_sv.size(), ordinate);
-            if (result.ec == std::errc::invalid_argument) {
-                std::cout << "Could not convert ordinate:" << std::string(ordinate_sv) << "\n";
-            }
-            position.m_Ordinanate = std::move(ordinate);
-            //
-            // Parse time of position.
-            //    
-            int time = 0;
-            std::string_view time_sv(&position_sv[ordinate_sep_end + 1], position_sv.size() - (ordinate_sep_end + 1));
-            result = std::from_chars(time_sv.data(), time_sv.data() + time_sv.size(), time);
-            if (result.ec == std::errc::invalid_argument) {
-                std::cout << "Could not convert time:" << std::string(time_sv) << "\n";
-            }
-            position.m_Time = std::move(time);
-            //
-            // move position to list of positions of car
-            //
-            car_log.m_Positions.emplace_back(std::move(position));
-            position_sep_begin = position_sep_end + 1;
+            park_log.m_CarLogs.emplace_back(std::move(car_log));
         }
-        //
-        // move car log to park log
-        //
-        park_log.m_CarLogs.emplace_back(std::move(car_log));
+        else{
+            //
+            // Reject car log with no ID separator.
+            //
+            std::cout << "Car log contains no ID separator: " << car_log_sv << "\n";
+        }
         log_sep_begin = log_sep_end + 1;
     }
 }
