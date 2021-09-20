@@ -28,7 +28,7 @@ private:
     std::string m_Log;
 public:
     Parser(std::filesystem::path const & filename, ParkLog & park_log);
-
+    std::string serializePark(ParkLog & park_log);
 };
 
 
